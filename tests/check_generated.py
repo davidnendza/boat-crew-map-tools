@@ -60,8 +60,8 @@ with tempfile.TemporaryDirectory() as out:
     bcps = glob.glob(os.path.join(out, '*.BCP'))
     check(len(bcps) == 3, f'expected 3 .BCP files, found {len(bcps)}')
     for b in bcps:
-        names = sorted(zipfile.ZipFile(b).namelist())
-        check(names == ['PreviewData.BCI', 'PreviewImage.png', 'SOURCE_1.BCD', 'SOURCE_1_Terrain.BCT'], f'{os.path.basename(b)}: unexpected contents {names}')
+        names = sorted(re.sub(r'SOURCE_\d+', 'SOURCE_n', n) for n in zipfile.ZipFile(b).namelist())   # the seed-3 rerun above is numbered SOURCE_4
+        check(names == ['PreviewData.BCI', 'PreviewImage.png', 'SOURCE_n.BCD', 'SOURCE_n_Terrain.BCT'], f'{os.path.basename(b)}: unexpected contents {names}')
 
 print(f'\n{failures} check(s) failed' if failures else '\nall checks passed')
 sys.exit(1 if failures else 0)

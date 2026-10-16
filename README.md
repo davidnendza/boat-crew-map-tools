@@ -103,6 +103,10 @@ python tests/check_generated.py # command-line generator checks
 
 `viewer/mapgen.js` is the browser generator and `tools/bc_mapgen.py` the Python one. If you change the island design, change both. The viewer is built into a single self-contained HTML file; [JSZip](https://stuk.github.io/jszip/) (MIT) is vendored in `viewer/vendor/` and inlined at build time.
 
+## Related
+
+[boat-crew-first-person](https://github.com/davidnendza/boat-crew-first-person): an experimental mod that puts you in first person as one of your crew, with notes on how the game was taken apart and what its crew stats do.
+
 ## Credits and licence
 
 MIT, see [LICENSE](LICENSE). Boat Crew is by Tabbing Tabby. The level format notes come from inspecting levels and from testing generated ones in the game's own editor.

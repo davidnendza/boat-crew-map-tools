@@ -108,7 +108,7 @@ button:disabled { opacity: .45; cursor: default; }
       <select id="sample" aria-label="Sample maps"></select>
       <label class="btn" for="f-files">Open files</label>
       <label class="btn" for="f-dir">Open folder</label>
-      <input id="f-files" type="file" multiple accept=".bcp,.bct,.bcd,.bci,.png,.zip">
+      <input id="f-files" type="file" multiple accept=".bcp,.bct,.bcd,.bci,.png,.zip,.json">
       <input id="f-dir" type="file" webkitdirectory>
     </div>
   </header>
@@ -536,8 +536,8 @@ $('o-scale').addEventListener('input', () => { draw(); updateHud(); });
 
 /* ---------- loading ---------- */
 function setMap(m) { map = m; GW = m.W; GH = m.H; $('o-scale').value = m.cfg.upp; $('o-flip').checked = false; $('scale-note').textContent = m.cfg.kind === 'world' ? 'Campaign coordinates. Each pixel here covers ' + m.cfg.upp.toFixed(3) + ' world units; the game\'s own island images are 0.0385 units per pixel and are shown 6x smaller here. All 38 settlements fall on or beside land at this scale.' : 'Origin is the map centre (pixel 2048, 2048). About 32 world units per pixel, measured from a generated map opened in the level editor (within roughly 5%). Editor grid labels are world units divided by 250, so the editor grid of about -50 to 50 covers only the middle ~800 pixels. Change the scale and watch the nodes move.'; hidden = new Set(m.cfg.kind === 'world' ? ['Patrol', 'Inflow', 'WorldPiece'] : []); selected = hover = null; userMoved = false; renderInfo(); renderChips(); select(null); resize(); fit(); updateHud(); }
-async function loadSample(key) {
-  const s = SAMPLES[key];
+async function loadSample(key) { return loadWorldData(SAMPLES[key]); }
+async function loadWorldData(s) {                         // a campaign map: bundled, or the campaign.json from tools/extract_campaign.py
   const meta = { Title: s.title, Author: s.author, Description: s.description };
   const terrain = await gunzip(b64(s.terrain));
   const bcd = JSON.parse(text(await gunzip(b64(s.bcd))));
@@ -545,7 +545,13 @@ async function loadSample(key) {
   setMap(await buildMap(meta, terrain, bcd, s.file, cfg));
 }
 async function loadFiles(list) {
-  const files = [...list]; let entries = [];            // [{name, read:()=>Promise<Uint8Array>}]
+  const files = [...list]; let entries = [];
+  if (files.length === 1 && /\.json$/i.test(files[0].name)) {   // campaign.json built from the player's own install
+    let s = null;
+    try { s = JSON.parse(text(new Uint8Array(await files[0].arrayBuffer()))); } catch (e) { s = null; }
+    if (!s || !s.terrain || !s.bcd || !s.w) throw new Error('That JSON file is not a campaign map made by tools/extract_campaign.py.');
+    return loadWorldData(s);
+  }            // [{name, read:()=>Promise<Uint8Array>}]
   for (const f of files) {
     if (/\.(bcp|zip)$/i.test(f.name)) {
       const z = await JSZip.loadAsync(f);

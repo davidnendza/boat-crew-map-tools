@@ -61,17 +61,37 @@ The browser version is a port of this script. The design and scale are the same,
 
 Tested in the game, with the round-island style: the level appears in the editor list, loads with its islands, and "save and play" starts you at sea. **Not tested:** the landmass and archipelago styles in the game (they are only checked structurally by the test scripts), that the enemy waves arrive, and that the goal ends the mission. The scale (about 32 world units per pixel) was measured from screenshots and is good to a few percent. Details and what's still unknown are in [docs/format.md](docs/format.md), which also documents the level file format, including the one thing that will bite anyone writing these files by hand (the group block).
 
-## The campaign map
+## The campaign map (if you own the game)
 
-The default viewer in this repository bundles no game maps. If you own the game you can build the Solomons campaign map from your own install and view it locally:
+The campaign is an open world of real Solomon Islands islands. This repository doesn't include it, because it comes from the game's own files, but if you own Boat Crew you can build it from your install and look at it in the viewer: islands, all 38 settlements by name, island labels and the patrol routes.
 
-```
-pip install UnityPy numpy Pillow
-python tools/extract_campaign.py --game "D:/Steam/steamapps/common/Boat Crew"
-python viewer/build.py --data viewer/data --out dist/index.html
-```
+You build one small file, `campaign.json`, on your own computer. The script only reads the game's files; it doesn't change anything in the game folder. Tested on Windows with the Steam version.
 
-`dist/index.html` then includes the campaign map with its settlements and patrol routes. It is derived from the game's assets, so keep it to yourself.
+1. **Install Python 3** from [python.org](https://www.python.org/downloads/) (on Windows, tick "Add Python to PATH" in the installer).
+2. **Get this repository.** Press **Code, Download ZIP** on GitHub and unzip it, or `git clone` it.
+3. **Open a terminal in that folder** and install the three libraries it needs:
+   ```
+   pip install UnityPy numpy Pillow
+   ```
+4. **Find your Boat Crew folder.** In Steam, right-click Boat Crew, then **Manage, Browse local files**. The folder you land in contains `Boat Crew.exe` and a `Boat Crew_Data` folder. A typical path is `C:/Program Files (x86)/Steam/steamapps/common/Boat Crew`.
+5. **Run the extractor**, giving it that folder (keep the quotes if the path has spaces):
+   ```
+   python tools/extract_campaign.py --game "C:/Program Files (x86)/Steam/steamapps/common/Boat Crew"
+   ```
+   It takes a few seconds and writes `viewer/data/campaign.json` (about 200 KB).
+6. **Open the viewer** ([hosted](https://davidnendza.github.io/boat-crew-map-tools/), or `docs/index.html` from your disk), press **Open files** (or drag the file onto the page) and choose `campaign.json`. The file is read inside your browser and is not uploaded anywhere.
+
+In the viewer, the **Layers** chips switch things on and off. Patrol points and inflow nodes are hidden at first; click them to show the routes. Settlements are coloured by side, and you can hover or click any node for details.
+
+Good to know:
+- `campaign.json` is derived from the game's assets. Don't share it or commit it (`viewer/data/` is git-ignored for this reason).
+- After a game update, run step 5 again.
+- Optional: `python viewer/build.py --data viewer/data --out dist/index.html` makes a copy of the viewer with the campaign map built in, for your own use.
+
+If something goes wrong:
+- *"No world_assets_all_*.bundle in ..."* means `--game` isn't the right folder. It must be the one that contains `Boat Crew_Data`.
+- *"This needs UnityPy"* means step 3 didn't finish. Run it again.
+- Any other error from UnityPy after a game update may mean the game changed its bundle format. It was written against the game as of October 2026 and UnityPy 1.25. Please open an issue with the error text.
 
 ## Development
 

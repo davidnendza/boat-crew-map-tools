@@ -140,7 +140,7 @@ def main():
     with open(a.out, 'w', encoding='utf-8') as f:
         json.dump(out, f)
     print(f'wrote {os.path.abspath(a.out)}  ({geo["w"]} x {geo["h"]} cells, {int((grid >= 2).sum()):,} land cells)')
-    print('Bundle it into a local viewer with: python viewer/build.py --data viewer/data --out dist/index.html')
+    print('Next: open the viewer and drop this file on it (or press Open files and pick it).')
 
 
 if __name__ == '__main__':

@@ -13,9 +13,9 @@ A random level generator and map viewer for [Boat Crew](https://store.steampower
 
 ## Try it in the browser
 
-Use the link above (Chrome or Edge work best). Press **Random map**, tweak the options, then **Download .zip** and unzip it into the game's `GameData/LevelEditor` folder. **Save to folder** writes the files there directly in browsers that allow it (Chrome and Edge; use the zip if yours refuses). No install, and nothing leaves your machine.
+Use the link above (Chrome or Edge work best). Press **Random map**, tweak the options, then **Download .zip** and extract it into the game's `GameData/LevelEditor` folder; the zip unpacks into its own folder named after the map. **Save to folder** writes the files there directly in browsers that allow it (Chrome and Edge; use the zip if yours refuses). No install, and nothing leaves your machine.
 
-To run it offline, clone the repository (or use **Code, Download ZIP**) and open `docs/index.html` from your disk. Opening that file *on GitHub* only shows its source code, which is how GitHub displays any HTML file.
+To run it offline, clone the repository (or use **Code, Download ZIP**) and open `docs/index.html` from your disk; it is one self-contained file, only the fonts come from the web. Opening that file *on GitHub* only shows its source code, which is how GitHub displays any HTML file.
 
 The viewer also opens existing levels (`.BCP` files, or the files from a level folder) and draws the terrain with every node, link and spawner on top, which is handy for checking a level before you load it.
 
@@ -31,7 +31,7 @@ A level is a folder of four files. Put it here, then open the game's level edito
     PreviewImage.png
 ```
 
-It shows up in the **level editor** list, not the user levels list. From there you can edit it or use "save and play". If you re-save in the editor it writes a new `SOURCE_2.BCD`; the highest number is the one the game loads.
+It shows up in the **level editor** list, not the user levels list. From there you can edit it or use "save and play". If you re-save in the editor it writes a new `SOURCE_2.BCD`; the highest number is the one the game loads. Both the viewer's Save to folder and the Python script respect that: when the folder already holds a `SOURCE_<n>`, they write `SOURCE_<n+1>` so the new level is the one that loads.
 
 ## Command line
 
@@ -101,7 +101,7 @@ node tests/test_mapgen.js       # browser generator checks
 python tests/check_generated.py # command-line generator checks
 ```
 
-`viewer/mapgen.js` is the browser generator and `tools/bc_mapgen.py` the Python one. If you change the island design, change both. The viewer is a single self-contained HTML file; it loads [JSZip](https://stuk.github.io/jszip/) from a CDN for the zip export.
+`viewer/mapgen.js` is the browser generator and `tools/bc_mapgen.py` the Python one. If you change the island design, change both. The viewer is built into a single self-contained HTML file; [JSZip](https://stuk.github.io/jszip/) (MIT) is vendored in `viewer/vendor/` and inlined at build time.
 
 ## Credits and licence
 

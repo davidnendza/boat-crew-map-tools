@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the single-file viewer from viewer.template.html and mapgen.js, then syntax-check its script.
+"""Build the single-file viewer from viewer.template.html, mapgen.js and vendor/jszip.min.js, then syntax-check its script.
 
     python viewer/build.py                      public build -> docs/index.html (no game data inside)
     python viewer/build.py --data viewer/data --out dist/index.html
@@ -36,6 +36,7 @@ def main():
                 data = json.loads(read(path))
                 samples.update({'campaign': data} if name == 'campaign.json' else data)
     html = (read(HERE, 'viewer.template.html')
+            .replace('/*__JSZIP__*/', read(HERE, 'vendor', 'jszip.min.js'))    # vendored so the page works offline
             .replace('/*__MAPGEN__*/', read(HERE, 'mapgen.js'))
             .replace('__SAMPLES__', json.dumps(samples, separators=(',', ':')))
             .replace('__REPO_URL__', a.repo_url))
@@ -45,17 +46,17 @@ def main():
         f.write(html)
     print(f'built {os.path.relpath(a.out, ROOT)} ({len(html):,} bytes, {len(samples)} bundled map(s))')
 
-    script = re.search(r'<script>(.*)</script>\s*$', html, re.S).group(1)
     if not shutil.which('node'):
         print('warning: node not found, skipped the script syntax check')
         return
-    with tempfile.NamedTemporaryFile('w', suffix='.js', delete=False, encoding='utf-8') as f:
-        f.write(script)
-    r = subprocess.run(['node', '--check', f.name], capture_output=True, text=True)
-    os.unlink(f.name)
-    if r.returncode:
-        print('SYNTAX ERROR\n' + r.stderr)
-        sys.exit(1)
+    for i, script in enumerate(re.findall(r'<script>(.*?)</script>', html, re.S)):   # the vendored JSZip block and the app block
+        with tempfile.NamedTemporaryFile('w', suffix='.js', delete=False, encoding='utf-8') as f:
+            f.write(script)
+        r = subprocess.run(['node', '--check', f.name], capture_output=True, text=True)
+        os.unlink(f.name)
+        if r.returncode:
+            print(f'SYNTAX ERROR in script block {i + 1}\n' + r.stderr[:3000])
+            sys.exit(1)
     print('script syntax ok')
 
 

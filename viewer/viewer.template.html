@@ -2,7 +2,7 @@
 <title>Boat Crew Map Viewer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>/*__JSZIP__*/</script>
 <style>
 /* Layout: a survey table. Chart canvas fills the left, an instrument column sits right and stacks under the chart on phones. */
 :root {
@@ -312,7 +312,7 @@ function renderTexture(m) {
 }
 
 /* ---------- coordinates ---------- */
-const unitsPerPx = () => Math.max(0.01, +$('o-scale').value || 16);
+const unitsPerPx = () => Math.max(0.01, +$('o-scale').value || (map ? map.cfg.upp : 32));
 const flipY = () => $('o-flip').checked;
 const ysgn = () => (map ? map.cfg.ysign : 1) * (flipY() ? -1 : 1);
 const w2p = n => ({ x: GW / 2 + (n.wx - map.cfg.cwx) / unitsPerPx(), y: GH / 2 + ysgn() * (n.wy - map.cfg.cwy) / unitsPerPx() });
@@ -332,7 +332,7 @@ function niceStep(raw) {
   const p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p;
   return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p;
 }
-function drawShape(g, shape, x, y, s, fill, stroke, rot) {
+function drawShape(g, shape, x, y, s, fill, stroke) {
   g.beginPath();
   if (shape === 'diamond') { g.moveTo(x, y - s); g.lineTo(x + s, y); g.lineTo(x, y + s); g.lineTo(x - s, y); g.closePath(); }
   else if (shape === 'tri') { g.moveTo(x, y - s * 1.1); g.lineTo(x + s, y + s * .8); g.lineTo(x - s, y + s * .8); g.closePath(); }
@@ -405,7 +405,6 @@ function drawGrid() {
     ctx.fillStyle = 'rgba(210,228,242,.75)'; ctx.fillText(String(Math.round(Y)), 4, sy + 3);
   }
 }
-let contourCache = null;
 function drawContours() {
   // marching on a coarse grid of the visible area, drawn as small cell edges
   const h = map.h, levels = 8, stepPx = Math.max(2, Math.round(3 / view.k));
@@ -467,6 +466,7 @@ cv.addEventListener('pointerup', e => {
   pointers.delete(e.pointerId); cv.classList.remove('drag'); lastPinch = 0;
   if (moved < 5) { updateHover(); select(hover); }
 });
+cv.addEventListener('pointercancel', e => { pointers.delete(e.pointerId); cv.classList.remove('drag'); lastPinch = 0; });   // a cancelled touch must not linger as a second finger
 cv.addEventListener('pointerleave', () => { mouse = null; hover = null; $('tip').hidden = true; updateHud(); draw(); });
 cv.addEventListener('wheel', e => { e.preventDefault(); zoomAt(Math.exp(-e.deltaY * 0.0015), e.offsetX, e.offsetY); }, { passive: false });
 cv.addEventListener('keydown', e => {
@@ -538,6 +538,7 @@ $('o-scale').addEventListener('input', () => { draw(); updateHud(); });
 function setMap(m) { map = m; GW = m.W; GH = m.H; $('o-scale').value = m.cfg.upp; $('o-flip').checked = false; $('scale-note').textContent = m.cfg.kind === 'world' ? 'Campaign coordinates. Each pixel here covers ' + m.cfg.upp.toFixed(3) + ' world units; the game\'s own island images are 0.0385 units per pixel and are shown 6x smaller here. All 38 settlements fall on or beside land at this scale.' : 'Origin is the map centre (pixel 2048, 2048). About 32 world units per pixel, measured from a generated map opened in the level editor (within roughly 5%). Editor grid labels are world units divided by 250, so the editor grid of about -50 to 50 covers only the middle ~800 pixels. Change the scale and watch the nodes move.'; hidden = new Set(m.cfg.kind === 'world' ? ['Patrol', 'Inflow', 'WorldPiece'] : []); selected = hover = null; userMoved = false; renderInfo(); renderChips(); select(null); resize(); fit(); updateHud(); }
 async function loadSample(key) { return loadWorldData(SAMPLES[key]); }
 async function loadWorldData(s) {                         // a campaign map: bundled, or the campaign.json from tools/extract_campaign.py
+  clearGenerated();
   const meta = { Title: s.title, Author: s.author, Description: s.description };
   const terrain = await gunzip(b64(s.terrain));
   const bcd = JSON.parse(text(await gunzip(b64(s.bcd))));
@@ -545,6 +546,7 @@ async function loadWorldData(s) {                         // a campaign map: bun
   setMap(await buildMap(meta, terrain, bcd, s.file, cfg));
 }
 async function loadFiles(list) {
+  clearGenerated();
   const files = [...list]; let entries = [];
   if (files.length === 1 && /\.json$/i.test(files[0].name)) {   // campaign.json built from the player's own install
     let s = null;
@@ -554,13 +556,17 @@ async function loadFiles(list) {
   }            // [{name, read:()=>Promise<Uint8Array>}]
   for (const f of files) {
     if (/\.(bcp|zip)$/i.test(f.name)) {
+      if (typeof JSZip === 'undefined') throw new Error('The zip library did not load, so .BCP and .zip files cannot be opened. Unzip the file and open its contents instead.');
       const z = await JSZip.loadAsync(f);
       z.forEach((p, e) => { if (!e.dir) entries.push({ name: p.split('/').pop(), read: () => e.async('uint8array') }); });
     } else entries.push({ name: f.name, read: async () => new Uint8Array(await f.arrayBuffer()) });
   }
-  const bct = entries.find(e => /\.bct$/i.test(e.name));
+  // the game loads the highest-numbered SOURCE_<n> file, so a level re-saved in the editor shows its latest save
+  const sourceNo = n => { const m = /SOURCE_(\d+)/i.exec(n); return m ? +m[1] : -1; };
+  const newest = re => entries.filter(e => re.test(e.name)).sort((a, b) => sourceNo(b.name) - sourceNo(a.name))[0];
+  const bct = newest(/\.bct$/i);
   if (!bct) throw new Error('No terrain (.BCT) file found.');
-  const bcdE = entries.filter(e => /\.bcd$/i.test(e.name)).sort((a, b) => 0)[0];
+  const bcdE = newest(/\.bcd$/i);
   const bciE = entries.find(e => /\.bci$/i.test(e.name));
   const terrain = await bct.read();
   let bcd = null;
@@ -587,6 +593,8 @@ addEventListener('drop', e => { e.preventDefault(); dragDepth = 0; $('drop').cla
 
 /* ---------- random map: generate, preview, export ---------- */
 let lastGen = null, genBusy = false;
+const delay = ms => new Promise(r => setTimeout(r, ms));     // let the page repaint before heavy work
+function clearGenerated() { lastGen = null; setGenBusy(false); }   // the export buttons only ever write the map on screen
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const genNum = (id, fallback) => { const v = parseFloat($(id).value); return Number.isFinite(v) ? v : fallback; };
 function genOptions() {
@@ -611,10 +619,10 @@ async function runGenerate(newSeed) {
     if (newSeed) $('g-seed').value = Math.floor(Math.random() * 1000000);
     const opts = genOptions();
     setGenStatus('Working');
-    await new Promise(r => setTimeout(r, 20));
+    await delay(20);
     const r = await BCG.generate(opts, msg => setGenStatus(msg + '...'));
     setGenStatus('Drawing the preview...');
-    await new Promise(r2 => setTimeout(r2, 20));
+    await delay(20);
     const meta = { Title: r.name, Author: 'Boat Crew Map Viewer', Description: r.description };
     const m = await buildMap(meta, new Uint8Array(r.h.buffer), r.graph, r.name + ' (generated)', CUSTOM_CFG);
     lastGen = { r, map: m };
@@ -640,12 +648,12 @@ function previewPNG(m) {
   g.drawImage(m.tex, x0, y0, 2 * half, 2 * half, 0, 0, 512, 512);
   return new Promise(res => c.toBlob(res, 'image/png'));
 }
-async function levelFiles(gen) {
+async function levelFiles(gen, saveNo = 1) {
   const { r, map } = gen, png = new Uint8Array(await (await previewPNG(map)).arrayBuffer());
   const json = JSON.stringify(r.graph, null, 2).replace(/\n/g, '\r\n');
   return {
-    'SOURCE_1_Terrain.BCT': new Uint8Array(r.h.buffer),
-    'SOURCE_1.BCD': await gzipBytes(enc.encode('﻿' + json)),   // gzip of UTF-8 JSON with a BOM, like the game's own files
+    ['SOURCE_' + saveNo + '_Terrain.BCT']: new Uint8Array(r.h.buffer),
+    ['SOURCE_' + saveNo + '.BCD']: await gzipBytes(enc.encode('﻿' + json)),   // gzip of UTF-8 JSON with a BOM, like the game's own files
     'PreviewData.BCI': enc.encode('Title: ' + r.name + '\r\nAuthor: Boat Crew Map Viewer\r\nDescription: ' + r.description + '\r\n'),
     'PreviewImage.png': png
   };
@@ -654,10 +662,11 @@ async function downloadBCP() {
   if (!lastGen || genBusy) return;
   setGenBusy(true);
   try {
+    if (typeof JSZip === 'undefined') throw new Error('The zip library did not load, so the zip cannot be built. Use Save to folder instead.');
     setGenStatus('Building the zip...');
-    await new Promise(r => setTimeout(r, 20));
+    await delay(20);
     const files = await levelFiles(lastGen), z = new JSZip();
-    for (const [n, data] of Object.entries(files)) z.file(n, data);
+    for (const [n, data] of Object.entries(files)) z.file(lastGen.r.name + '/' + n, data);   // extracting into LevelEditor gives the level its own folder
     const blob = await z.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 3 } });
     const filename = lastGen.r.name + '.zip';
     let dl = null;
@@ -670,26 +679,31 @@ async function downloadBCP() {
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 30000);
     }
-    setGenStatus('Saved ' + filename + '. Unzip it into GameData/LevelEditor/' + lastGen.r.name + '/ and look for it in the level editor list.');
+    setGenStatus('Saved ' + filename + '. Extract it into GameData/LevelEditor (it unpacks into its own "' + lastGen.r.name + '" folder) and look for it in the level editor list.');
   } catch (err) {
     setGenStatus(err && err.code === 'declined' ? 'Cancelled.' : (err.message || String(err)), !(err && err.code === 'declined'));
   } finally { setGenBusy(false); }
 }
 async function saveToFolder() {
   if (!lastGen || genBusy) return;
-  if (!window.showDirectoryPicker) { setGenStatus('This browser cannot write to a folder. Use Download .BCP instead.', true); return; }
+  if (!window.showDirectoryPicker) { setGenStatus('This browser cannot write to a folder. Use Download .zip instead.', true); return; }
   setGenBusy(true);
   try {
     const root = await window.showDirectoryPicker({ mode: 'readwrite' });
     setGenStatus('Writing files...');
-    const files = await levelFiles(lastGen), dir = await root.getDirectoryHandle(lastGen.r.name, { create: true });
+    const dir = await root.getDirectoryHandle(lastGen.r.name, { create: true });
+    // The game loads the highest-numbered SOURCE_<n>. If the editor already saved a SOURCE_2 here, a new SOURCE_1
+    // would be ignored, so number this save above anything present (and leave the old files alone).
+    let top = 0;
+    for await (const [n] of dir.entries()) { const m = /^SOURCE_(\d+)/i.exec(n); if (m) top = Math.max(top, +m[1]); }
+    const files = await levelFiles(lastGen, top + 1);
     for (const [n, data] of Object.entries(files)) {
       const w = await (await dir.getFileHandle(n, { create: true })).createWritable();
       await w.write(data); await w.close();
     }
-    setGenStatus('Saved ' + lastGen.r.name + ' into ' + root.name + '. In the game, open the level editor and look for it in the list.');
+    setGenStatus('Saved ' + lastGen.r.name + ' into ' + root.name + (top ? ' as SOURCE_' + (top + 1) + ' (the folder already had SOURCE_' + top + ')' : '') + '. In the game, open the level editor and look for it in the list.');
   } catch (err) {
-    setGenStatus(err && err.name === 'AbortError' ? 'Cancelled.' : 'Could not save to a folder (' + (err.message || err) + '). Use Download .BCP, or open this page from disk.', err && err.name !== 'AbortError');
+    setGenStatus(err && err.name === 'AbortError' ? 'Cancelled.' : 'Could not save to a folder (' + (err.message || err) + '). Use Download .zip instead.', err && err.name !== 'AbortError');
   } finally { setGenBusy(false); }
 }
 const STYLE_DEFAULTS = { landmass: { count: 3, label: 'Landmasses' }, archipelago: { count: 9, label: 'Islands' }, islands: { count: 6, label: 'Islands' } };

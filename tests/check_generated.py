@@ -49,6 +49,14 @@ with tempfile.TemporaryDirectory() as out:
         check(r.returncode == 0, f'{style}: generator failed\n{r.stderr}')
     for folder in sorted(glob.glob(os.path.join(out, '*', ''))):
         validate(folder, os.path.basename(os.path.dirname(folder)))
+    # the game loads the highest SOURCE_<n>, so a rerun into a folder that already has SOURCE_3 must write SOURCE_4
+    folder = os.path.join(out, 'Random Landmasses 3')
+    open(os.path.join(folder, 'SOURCE_3.BCD'), 'wb').close()
+    r = subprocess.run([sys.executable, GEN, '--seed', '3', '--out', out], capture_output=True, text=True)
+    check(r.returncode == 0 and os.path.exists(os.path.join(folder, 'SOURCE_4.BCD')) and os.path.exists(os.path.join(folder, 'SOURCE_4_Terrain.BCT')), 'rerun did not number its save above the existing SOURCE_3')
+    # no land at all must stop with a message, not a traceback
+    r = subprocess.run([sys.executable, GEN, '--seed', '3', '--island-size', '0.01', '--out', os.path.join(out, 'noland')], capture_output=True, text=True)
+    check(r.returncode != 0 and 'no land' in (r.stdout + r.stderr) and 'Traceback' not in r.stderr, 'no-land case did not fail cleanly')
     bcps = glob.glob(os.path.join(out, '*.BCP'))
     check(len(bcps) == 3, f'expected 3 .BCP files, found {len(bcps)}')
     for b in bcps:

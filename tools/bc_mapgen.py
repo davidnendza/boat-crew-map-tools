@@ -1,27 +1,26 @@
 #!/usr/bin/env python3
 """Boat Crew random custom-level generator.
 
-Writes a folder in the custom-level format the game reads
-(GameData/Workshop/CustomLevel/<id>/ or GameData/LevelEditor/<name>/):
+Writes a level folder in the format the game's level editor reads. Put it under
+<Boat Crew>/Boat Crew_Data/GameData/LevelEditor/<name>/ and it appears in the editor's list:
 
     SOURCE_<n>_Terrain.BCT   4096x4096 little-endian uint16, 0 = sea, >0 = land height
     SOURCE_<n>.BCD           gzip'd JSON node graph (spawners, waypoints, mission nodes)
     PreviewData.BCI          Title / Author / Description
     PreviewImage.png         thumbnail
 
-Also writes <name>.BCP (a zip of the same files, the Steam Workshop format).
+Also writes <name>.BCP (a zip of the same files at its root, the Steam Workshop layout).
 
-World <-> pixel mapping used for node placement (UNCONFIRMED in-game):
-    px = 2048 + X / UNITS_PER_PX      py = 2048 + Y / UNITS_PER_PX      (UNITS_PER_PX = 32)
-Measured from a generated map opened in the level editor: the editor's grid labels are world units / 250,
-and the terrain is about 32 world units per pixel (an earlier guess of 16 put islands half as far out as drawn).
-The editor grid shows roughly +-50 grid units (+-12,500 world, +-390 px), so everything is kept inside +-375 px.
+World <-> pixel mapping used for node placement, measured by opening generated maps in the editor:
+    px = 2048 + X / UNITS_PER_PX      py = 2048 + Y / UNITS_PER_PX      (UNITS_PER_PX = 32, good to a few percent)
+The editor's grid labels are world units / 250 and its grid shows roughly +-50 labels (+-12,500 world, +-390 px),
+so everything is kept inside +-375 px of the centre.
 Use --calibrate to add four marker waypoints (+-10 grid units around the player start) to check the scale in-game.
 
-Usage: python bc_mapgen.py --seed 7 --islands 6 --out ./generated
+Usage: python bc_mapgen.py --seed 7 --style landmass --out ./generated
 Needs: numpy, Pillow.
 """
-import argparse, gzip, json, math, os, random, zipfile
+import argparse, gzip, json, math, os, random, re, zipfile
 import numpy as np
 from PIL import Image
 
@@ -285,7 +284,7 @@ def main():
     ap.add_argument("--ruggedness", type=float, default=0.9)
     ap.add_argument("--peak", type=int, default=4000, help="highest terrain value (sample maps peak at 2500-4700)")
     ap.add_argument("--difficulty", type=int, default=1, choices=[0, 1, 2, 3])
-    ap.add_argument("--version", type=int, default=1, help="n in SOURCE_<n>.BCD / SOURCE_<n>_Terrain.BCT")
+    ap.add_argument("--version", type=int, default=None, help="n in SOURCE_<n>.BCD / SOURCE_<n>_Terrain.BCT (default: one above any SOURCE_<n> already in the output folder, else 1, because the game loads the highest)")
     ap.add_argument("--name", default=None)
     ap.add_argument("--author", default="bc_mapgen")
     ap.add_argument("--calibrate", action="store_true", help="add four marker waypoints on a known square")
@@ -298,10 +297,16 @@ def main():
     name = a.name or f"{STYLE_NAMES[a.style]} {a.seed}"
     rng = random.Random(a.seed * 7919)
     h, centres = make_terrain(a.seed, a.islands, a.spread, a.island_size, a.ruggedness, a.peak, a.style)
+    if not (h > 0).any():
+        raise SystemExit("These settings produced no land at all. Use a larger --island-size or lower --ruggedness.")
     g, start, goal = build_graph(name, h, centres, rng, a.calibrate, a.difficulty)
 
     folder = os.path.join(a.out, name)
     os.makedirs(folder, exist_ok=True)
+    if a.version is None:
+        # the game loads the highest-numbered SOURCE_<n>; number this save above any the editor left here
+        present = [int(m.group(1)) for fn in os.listdir(folder) for m in [re.match(r"SOURCE_(\d+)", fn, re.I)] if m]
+        a.version = max(present, default=0) + 1
     bct = f"SOURCE_{a.version}_Terrain.BCT"
     bcd = f"SOURCE_{a.version}.BCD"
     h.astype("<u2").tofile(os.path.join(folder, bct))

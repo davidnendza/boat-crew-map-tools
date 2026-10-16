@@ -316,6 +316,7 @@ const BCG = (() => {
     const name = p.name || `${STYLE_NAMES[p.style] || STYLE_NAMES.landmass} ${p.seed}`;
     const rngPlace = rngFrom(p.seed), rngNoise = rngFrom((p.seed ^ 0x9E3779B9) + 12345), rngGraph = rngFrom(p.seed * 7919);
     const { h, centres } = await makeTerrain(p, rngPlace, rngNoise, progress);
+    if (!h.some(v => v > 0)) throw new Error('These settings produced no land at all. Use a larger island radius or lower ruggedness.');
     progress('Placing the mission');
     await tick();
     const { g, start, goal } = buildGraph(name, makeSeaFinder(h), rngGraph, p.calibrate, p.difficulty);

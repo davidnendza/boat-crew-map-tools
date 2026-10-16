@@ -23,7 +23,7 @@ A Workshop download is a single `.BCP` file, which is a plain zip of the same fi
 | `PreviewImage.png` | Thumbnail. |
 | `SOURCE_<n>_LoadoutCraft.BCS`, `SOURCE_<n>_LoadoutCrew.BCS` | Optional. gzip JSON "Game Save" holding the player boat loadout. The generator doesn't write these. |
 
-`n` is a save counter. The editor writes a new `SOURCE_<n+1>.BCD` each time you save, and the terrain file is found separately, so the two numbers can differ. The highest-numbered `.BCD` wins, which means a stray empty save from the editor will shadow a generated file. Delete it.
+`n` is a save counter. The editor writes a new `SOURCE_<n+1>.BCD` each time you save, and the terrain file is found separately, so the two numbers can differ. The highest-numbered `.BCD` wins, which means a stray empty save from the editor will shadow a generated file. The viewer opens the highest number too, and both writers in this repository (Save to folder and `bc_mapgen.py`) number a new save above anything already in the folder for that reason.
 
 ## The node graph (`.BCD`)
 

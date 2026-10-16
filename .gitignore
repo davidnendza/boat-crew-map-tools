@@ -1,0 +1,12 @@
+# local, game-derived or generated data: never commit these
+viewer/data/
+dist/
+generated/
+*.BCT
+*.BCD
+*.BCP
+
+# python / node
+__pycache__/
+*.pyc
+node_modules/

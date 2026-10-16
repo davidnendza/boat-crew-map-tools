@@ -9,9 +9,13 @@ A random level generator and map viewer for [Boat Crew](https://store.steampower
 
 > Unofficial fan project, not affiliated with the developer. It contains no game assets.
 
+**[Open the generator and viewer in your browser](https://davidnendza.github.io/boat-crew-map-tools/)**
+
 ## Try it in the browser
 
-Open `docs/index.html` in Chrome or Edge (or the hosted copy, if this repository has GitHub Pages turned on). Press **Random map**, tweak the options, then **Download .zip** and unzip it into the game's `GameData/LevelEditor` folder. **Save to folder** writes the files there directly in browsers that allow it (Chrome and Edge; use the zip if yours refuses). No install, and nothing leaves your machine.
+Use the link above (Chrome or Edge work best). Press **Random map**, tweak the options, then **Download .zip** and unzip it into the game's `GameData/LevelEditor` folder. **Save to folder** writes the files there directly in browsers that allow it (Chrome and Edge; use the zip if yours refuses). No install, and nothing leaves your machine.
+
+To run it offline, clone the repository (or use **Code, Download ZIP**) and open `docs/index.html` from your disk. Opening that file *on GitHub* only shows its source code, which is how GitHub displays any HTML file.
 
 The viewer also opens existing levels (`.BCP` files, or the files from a level folder) and draws the terrain with every node, link and spawner on top, which is handy for checking a level before you load it.
 

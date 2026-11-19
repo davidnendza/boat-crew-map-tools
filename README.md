@@ -111,4 +111,7 @@ python tests/check_generated.py # command-line generator checks
 
 MIT, see [LICENSE](LICENSE). Boat Crew is by Tabbing Tabby. The level format notes come from inspecting levels and from testing generated ones in the game's own editor.
 
-## Disclaimer\r\n\r\nI am not personally affiliated with the developers or publishers of Boat Crew, nor have they endorsed this project.\r\nBoat Crew and any of its content or materials are the property of their respective owners.\r\n
+## Disclaimer
+
+I am not personally affiliated with the developers or publishers of Boat Crew, nor have they endorsed this project.
+Boat Crew and any of its content or materials are the property of their respective owners.
